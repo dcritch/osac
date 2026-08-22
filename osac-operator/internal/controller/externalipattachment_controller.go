@@ -213,10 +213,8 @@ func (r *ExternalIPAttachmentReconciler) handleUpdate(ctx context.Context, attac
 	}
 	pool := &poolList.Items[0]
 
-	implementationStrategy := pool.Spec.ImplementationStrategy
-	if implementationStrategy == "" {
-		implementationStrategy = defaultExternalIPPoolImplementationStrategy
-	}
+	// TEST BRANCH ONLY: force netris for all networking resources.
+	implementationStrategy := "netris"
 
 	// Resolve target ComputeInstance
 	ci, result, err := r.resolveComputeInstance(ctx, attachment)

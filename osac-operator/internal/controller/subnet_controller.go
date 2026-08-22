@@ -222,14 +222,9 @@ func (r *SubnetReconciler) handleUpdate(ctx context.Context, subnet *v1alpha1.Su
 	if err != nil {
 		return ctrl.Result{}, err
 	}
-	implementationStrategy := vnet.Spec.ImplementationStrategy
-	// plan may be nil here (no-dispatcher legacy path); FabricTarget/K8sTarget have
-	// nil-receiver-safe implementations that return nil in that case, so this — unlike
-	// sibling controllers' resolveImplementationStrategy — deliberately calls the
-	// DispatchPlan accessors directly rather than guarding with a nil check.
-	if fabricTarget := plan.FabricTarget(); fabricTarget != nil {
-		implementationStrategy = fabricTarget.Manager.Name
-	}
+	// TEST BRANCH ONLY: force netris for all networking resources.
+	implementationStrategy := "netris"
+	_ = plan
 	if implementationStrategy == "" {
 		log.Info("implementation strategy not set on parent VirtualNetwork, requeueing", "virtualNetwork", vnet.Name)
 		return ctrl.Result{RequeueAfter: defaultPreconditionRequeueInterval}, nil

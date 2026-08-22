@@ -66,30 +66,14 @@ func resolveDispatchPlan(
 // the behavior for deployments without the two-manager model configured, or resources
 // using the platform-default NetworkClass (which has no ID to resolve against).
 func resolveImplementationStrategy(
-	ctx context.Context,
-	resolver *dispatcher.Resolver,
-	kind string,
-	networkClassID string,
-	legacyStrategy string,
+	_ context.Context,
+	_ *dispatcher.Resolver,
+	_ string,
+	_ string,
+	_ string,
 ) (string, error) {
-	plan, err := resolveDispatchPlan(ctx, resolver, kind, networkClassID)
-	if err != nil {
-		return "", err
-	}
-	if plan == nil {
-		return legacyStrategy, nil
-	}
-	target := plan.FabricTarget()
-	if target == nil {
-		// A K8sFallback kind (e.g. VirtualNetwork, SecurityGroup) with no fabricManager
-		// resolves its fabric role to a k8s-role target instead (see Dispatch), so check
-		// K8sTarget before giving up and falling back to legacyStrategy.
-		target = plan.K8sTarget()
-	}
-	if target == nil {
-		return legacyStrategy, nil
-	}
-	return target.Manager.Name, nil
+	// TEST BRANCH ONLY: force netris for all networking resources.
+	return "netris", nil
 }
 
 // dispatchTargetProvider decorates a shared provisioning.ProvisioningProvider so that
