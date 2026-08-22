@@ -306,6 +306,10 @@ func (r *ExternalIPReconciler) populateAddressIfMissing(ctx context.Context, ext
 	}
 	ipAddress := r.getExternalIPAddress(ctx, targetClient, externalIP.Name)
 	if ipAddress != "" {
+		if externalIP.Annotations == nil {
+			externalIP.Annotations = make(map[string]string)
+		}
+		externalIP.Annotations[osacExternalIPAllocatedAddressAnnotation] = ipAddress
 		externalIP.Status.Address = ipAddress
 		externalIP.Status.Phase = v1alpha1.ExternalIPPhaseReady
 		log.Info("populated ExternalIP address from LoadBalancer Service (fallback)", "address", ipAddress)
