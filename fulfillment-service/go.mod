@@ -10,7 +10,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.5
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/alecthomas/chroma/v2 v2.27.0
-	github.com/cenkalti/backoff/v4 v4.3.0
+	github.com/cenkalti/backoff/v7 v7.0.0
 	github.com/coder/websocket v1.8.15
 	github.com/dustin/go-humanize v1.0.1
 	github.com/go-logr/logr v1.4.4
@@ -63,6 +63,7 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20251205161215-1948445e3318 // indirect

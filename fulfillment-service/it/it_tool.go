@@ -33,7 +33,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v7"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/osac-project/osac/fulfillment-service/internal/auth"
 	"github.com/osac-project/osac/fulfillment-service/internal/jq"
