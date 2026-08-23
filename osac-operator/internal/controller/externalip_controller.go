@@ -196,10 +196,11 @@ func (r *ExternalIPReconciler) handleUpdate(ctx context.Context, externalIP *v1a
 	pool := &poolList.Items[0]
 	log.Info("resolved parent ExternalIPPool", "poolName", pool.Name, "poolUUID", externalIP.Spec.Pool)
 
-	// Inherit implementation strategy from the parent pool. Unlike ExternalIPPool (which
-	// reads strategy from its own spec), ExternalIP must look it up from the parent.
-	// TEST BRANCH ONLY: force netris for all networking resources.
-	implementationStrategy := "netris"
+	// Inherit implementation strategy from the parent pool.
+	implementationStrategy := pool.Spec.ImplementationStrategy
+	if implementationStrategy == "" {
+		implementationStrategy = defaultExternalIPPoolImplementationStrategy
+	}
 
 	if externalIP.Annotations == nil {
 		externalIP.Annotations = make(map[string]string)
