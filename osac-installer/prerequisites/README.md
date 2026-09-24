@@ -84,6 +84,17 @@ oc wait clusterissuer/default-ca --for=condition=Ready --timeout=300s
 
 Identity provider for OIDC authentication.
 
+First, set `OSAC_UI_URL` in `prerequisites/keycloak/service/deployment.yaml` to
+the browser-facing URL of the OSAC UI Route
+(`https://osac-ui-<namespace>.<cluster ingress domain>`). It ships empty and the
+realm resolver rejects an empty value, so the Deployment below will not start
+until you fill it in. The value is substituted into the `osac-ui` client's
+`rootUrl`, `redirectUris` and `webOrigins`; a value that does not match the URL
+the browser actually uses makes login fail with `Invalid parameter:
+redirect_uri`. The URL must use `https`, except for the local-development hosts
+`localhost`, `*.localhost` and `127.0.0.1`. The Helm chart sets this
+automatically from `keycloak.uiUrl`.
+
 ```bash
 oc apply -f prerequisites/keycloak/namespace.yaml
 oc create configmap keycloak-db-server-config \
@@ -99,14 +110,6 @@ oc apply -f prerequisites/keycloak/database/ -n keycloak
 oc apply -f prerequisites/keycloak/service/ -n keycloak
 oc wait --for=condition=Available deployment/keycloak-service -n keycloak --timeout=600s
 ```
-
-Before applying `prerequisites/keycloak/service/`, set `OSAC_UI_URL` in
-`prerequisites/keycloak/service/deployment.yaml` to the browser-facing URL of
-the OSAC UI Route (`https://osac-ui-<namespace>.<cluster ingress domain>`).
-It is substituted into the `osac-ui` client's `rootUrl`, `redirectUris` and
-`webOrigins`; the placeholder value makes browser login fail with
-`Invalid parameter: redirect_uri`. The Helm chart sets this automatically from
-`keycloak.uiUrl`.
 
 ### Step 5: Red Hat AAP Operator
 
