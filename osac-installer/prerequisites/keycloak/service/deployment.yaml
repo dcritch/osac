@@ -85,6 +85,15 @@ spec:
           # substituted into rootUrl/redirectUris/webOrigins here.
           OSAC_UI_URL="${OSAC_UI_URL%/}"
           [[ "${OSAC_UI_URL}" =~ ^https?://[A-Za-z0-9._-]+(:[0-9]+)?$ ]] || { echo "ERROR: OSAC_UI_URL must be an absolute scheme://host[:port] URL with no path, got '${OSAC_UI_URL}'" >&2; exit 1; }
+          # http:// would return the authorization code to the browser
+          # unencrypted, so it is allowed only for local-development hosts.
+          if [[ "${OSAC_UI_URL}" == http://* ]]; then
+            OSAC_UI_HOST="${OSAC_UI_URL#http://}"; OSAC_UI_HOST="${OSAC_UI_HOST%%:*}"
+            case "${OSAC_UI_HOST}" in
+              localhost | *.localhost | 127.0.0.1) ;;
+              *) echo "ERROR: OSAC_UI_URL must use https:// for '${OSAC_UI_HOST}'; http:// is allowed only for local development (localhost, *.localhost, 127.0.0.1)" >&2; exit 1 ;;
+            esac
+          fi
           json_escape_string() { python3 -c "import json,sys; print(json.dumps(sys.argv[1])[1:-1])" "$1"; }
           escape_sed_replacement() { printf '%s' "$1" | sed -e 's/[\&#]/\\&/g'; }
           sed \
@@ -97,10 +106,13 @@ spec:
             /realm-raw/realm.json > /realm/realm.json
         env:
         # Browser-facing base URL of the OSAC UI Route, e.g.
-        # https://osac-ui-<namespace>.<cluster ingress domain>. Edit this before
-        # applying the manifest -- the Helm chart sets it from keycloak.uiUrl.
+        # https://osac-ui-<namespace>.<cluster ingress domain>. Intentionally
+        # empty: the resolver above rejects it, so applying this manifest
+        # unedited fails loudly instead of importing a realm whose osac-ui
+        # redirectUris point at someone else's hostname. Set it before applying
+        # -- the Helm chart sets it from keycloak.uiUrl.
         - name: OSAC_UI_URL
-          value: "https://osac-ui-osac.apps.example.com"
+          value: ""
         - name: REALM_ADMIN_USERNAME
           valueFrom:
             secretKeyRef:
