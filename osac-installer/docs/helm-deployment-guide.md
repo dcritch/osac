@@ -162,6 +162,13 @@ keycloak:
   uiUrl: https://osac-ui-osac.apps.example.com  # scheme://host[:port], no path
 ```
 
+The scheme must be `https`. Plain `http` is accepted only for the
+local-development hosts `localhost`, `*.localhost` and `127.0.0.1` (the chart
+default is the kind `dev-full` UI, `http://ui.osac.localhost:8080`); for any
+other host the `resolve-realm-secrets` initContainer fails the install rather
+than register a redirect URI that would return the authorization code
+unencrypted.
+
 `keycloak.uiUrl` is substituted into the `osac-ui` client's `rootUrl`,
 `redirectUris` (`/callback` and `/*`) and `webOrigins` by the
 `resolve-realm-secrets` initContainer. `make install-infra` sets it

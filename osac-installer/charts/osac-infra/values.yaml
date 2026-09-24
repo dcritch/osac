@@ -33,6 +33,10 @@ keycloak:
   # redirectUris and webOrigins in realm.json, which Keycloak validates the
   # authorization-code redirect_uri against -- a relative value there breaks
   # browser login with "Invalid parameter: redirect_uri" (OSAC-3884).
+  # The scheme must be https, except for the local-development hosts
+  # `localhost`, `*.localhost` and `127.0.0.1`, where plain http is allowed --
+  # anywhere else it would return the authorization code to the browser
+  # unencrypted, and the resolver rejects it.
   # The default matches the kind dev-full UI HTTPRoute; on OpenShift
   # `make install-infra` overrides it with the osac-ui Route URL.
   uiUrl: "http://ui.osac.localhost:8080"

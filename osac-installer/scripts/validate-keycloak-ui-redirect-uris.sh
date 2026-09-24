@@ -23,7 +23,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CHART_DIR="${SCRIPT_DIR}/../charts/osac-infra"
 PREREQ_DIR="${SCRIPT_DIR}/../prerequisites/keycloak/service"
 TEST_UI_URL="https://osac-ui-osac.apps.example.com"
+TEST_LOCAL_UI_URL="http://ui.osac.localhost:8080"
 FAILURES=0
+
+# Mirrors the resolvers' OSAC_UI_URL policy: an absolute scheme://host[:port]
+# URL, and http:// only for the local-development hosts the chart documents on
+# keycloak.uiUrl (plain HTTP would carry the authorization code in the clear).
+ui_url_is_valid() {
+    local url="$1" host
+    [[ "${url}" =~ ^https?://[A-Za-z0-9._-]+(:[0-9]+)?$ ]] || return 1
+    [[ "${url}" == http://* ]] || return 0
+    host="${url#http://}"
+    host="${host%%:*}"
+    [[ "${host}" == "localhost" || "${host}" == *.localhost || "${host}" == "127.0.0.1" ]]
+}
 
 fail() {
     echo "FAIL: $1" >&2
@@ -117,8 +130,8 @@ sys.exit(1)
 }
 DEFAULT_UI_URL=$(render_ui_url <<<"${DEFAULT_RENDER}") \
     || fail "resolve-realm-secrets init container has no OSAC_UI_URL env var"
-[[ "${DEFAULT_UI_URL}" =~ ^https?://[A-Za-z0-9._-]+(:[0-9]+)?$ ]] \
-    || fail "Default keycloak.uiUrl must render as an absolute scheme://host[:port] URL, got '${DEFAULT_UI_URL}'"
+ui_url_is_valid "${DEFAULT_UI_URL}" \
+    || fail "Default keycloak.uiUrl must render as an absolute scheme://host[:port] URL, https unless it is a local-development host, got '${DEFAULT_UI_URL}'"
 
 OVERRIDE_UI_URL=$(helm template "${CHART_DIR}" --set "keycloak.uiUrl=${TEST_UI_URL}" | render_ui_url) \
     || fail "resolve-realm-secrets init container has no OSAC_UI_URL env var when keycloak.uiUrl is overridden"
@@ -126,23 +139,32 @@ OVERRIDE_UI_URL=$(helm template "${CHART_DIR}" --set "keycloak.uiUrl=${TEST_UI_U
     || fail "keycloak.uiUrl override must reach OSAC_UI_URL, got '${OVERRIDE_UI_URL}'"
 
 echo "=== Test 3: the chart's resolver hook produces absolute osac-ui redirect URIs ==="
-PATH="${TMP_DIR}/bin:${PATH}" \
-REALM_RAW_PATH="${CHART_DIR}/files/realm.json" \
-REALM_OUTPUT_PATH="${TMP_DIR}/chart-realm-resolved.json" \
-REALM_ADMIN_USERNAME="admin" \
-REALM_ADMIN_PASSWORD="admin" \
-OSAC_UI_URL="${TEST_UI_URL}" \
-    bash "${CHART_DIR}/files/hooks/resolve-realm-secrets.sh" >/dev/null 2>&1 \
-    || fail "resolve-realm-secrets.sh exited non-zero with a valid OSAC_UI_URL"
+# Runs the chart hook with $1 as OSAC_UI_URL and asserts the resolved osac-ui
+# client is rooted at exactly that URL (so an accepted URL is also preserved
+# verbatim, scheme included).
+assert_resolver_accepts() {
+    local url="$1" description="$2" out="${TMP_DIR}/resolved-$3.json"
+    PATH="${TMP_DIR}/bin:${PATH}" \
+    REALM_RAW_PATH="${CHART_DIR}/files/realm.json" \
+    REALM_OUTPUT_PATH="${out}" \
+    REALM_ADMIN_USERNAME="admin" \
+    REALM_ADMIN_PASSWORD="admin" \
+    OSAC_UI_URL="${url}" \
+        bash "${CHART_DIR}/files/hooks/resolve-realm-secrets.sh" >/dev/null 2>&1 \
+        || { fail "resolve-realm-secrets.sh exited non-zero with ${description} OSAC_UI_URL '${url}'"; return; }
 
-if [[ -f "${TMP_DIR}/chart-realm-resolved.json" ]]; then
-    assert_resolved_ui_client "${TMP_DIR}/chart-realm-resolved.json" "${TEST_UI_URL}" \
-        "Chart resolver output"
-else
-    fail "resolve-realm-secrets.sh did not produce a resolved realm.json"
-fi
+    if [[ -f "${out}" ]]; then
+        assert_resolved_ui_client "${out}" "${url}" "Chart resolver output for ${description} OSAC_UI_URL"
+    else
+        fail "resolve-realm-secrets.sh did not produce a resolved realm.json for '${url}'"
+    fi
+}
+assert_resolver_accepts "${TEST_UI_URL}" "an https" "https"
+# Local development runs the UI over plain HTTP (chart default), so the HTTPS
+# requirement must not strip that host out of the realm.
+assert_resolver_accepts "${TEST_LOCAL_UI_URL}" "a local-development http" "local-http"
 
-echo "=== Test 4: the resolver rejects a relative or missing UI URL ==="
+echo "=== Test 4: the resolver rejects a relative, missing, or insecure UI URL ==="
 run_resolver_expecting_failure() {
     local description="$1"
     shift
@@ -159,6 +181,10 @@ run_resolver_expecting_failure() {
 run_resolver_expecting_failure "resolve-realm-secrets.sh must reject an unset OSAC_UI_URL" OSAC_UI_URL=
 run_resolver_expecting_failure "resolve-realm-secrets.sh must reject a relative OSAC_UI_URL" OSAC_UI_URL=/
 run_resolver_expecting_failure "resolve-realm-secrets.sh must reject a scheme-less OSAC_UI_URL" OSAC_UI_URL=osac-ui.apps.example.com
+run_resolver_expecting_failure "resolve-realm-secrets.sh must reject a remote http:// OSAC_UI_URL (the authorization code would travel unencrypted)" \
+    OSAC_UI_URL=http://osac-ui-osac.apps.example.com
+run_resolver_expecting_failure "resolve-realm-secrets.sh must reject a remote http:// OSAC_UI_URL that merely mentions localhost" \
+    OSAC_UI_URL=http://localhost.apps.example.com
 
 echo "=== Test 5: the static reference manifest resolves the UI URL the same way ==="
 # prerequisites/keycloak/service/deployment.yaml carries its own hand-maintained
@@ -199,9 +225,26 @@ if [[ -n "${STATIC_RESOLVE_SCRIPT}" ]]; then
         fail "Static reference manifest's resolver did not produce a resolved realm.json"
     fi
 
-    # The manifest must also actually set OSAC_UI_URL -- Test 5 only proves the
-    # extracted logic works when the env var is supplied by hand.
-    python3 -c "
+    # The hand-maintained copy must enforce the same HTTPS rule as the hook.
+    if env PATH="${TMP_DIR}/bin:${PATH}" \
+        REALM_ADMIN_USERNAME="admin" \
+        REALM_ADMIN_PASSWORD="admin" \
+        OSAC_UI_URL="http://osac-ui-osac.apps.example.com" \
+        bash "${TMP_DIR}/extracted-static-resolve.sh" >/dev/null 2>&1; then
+        fail "Static reference manifest's resolver must reject a remote http:// OSAC_UI_URL"
+    fi
+
+    if ! env PATH="${TMP_DIR}/bin:${PATH}" \
+        REALM_ADMIN_USERNAME="admin" \
+        REALM_ADMIN_PASSWORD="admin" \
+        OSAC_UI_URL="${TEST_LOCAL_UI_URL}" \
+        bash "${TMP_DIR}/extracted-static-resolve.sh" >/dev/null 2>&1; then
+        fail "Static reference manifest's resolver must accept the local-development http:// OSAC_UI_URL"
+    fi
+
+    # The manifest must declare OSAC_UI_URL -- Test 5 only proves the extracted
+    # logic works when the env var is supplied by hand.
+    STATIC_UI_URL=$(python3 -c "
 import yaml, sys
 with open('${PREREQ_DIR}/deployment.yaml') as f:
     for d in yaml.safe_load_all(f):
@@ -209,10 +252,23 @@ with open('${PREREQ_DIR}/deployment.yaml') as f:
             for c in d['spec']['template']['spec']['initContainers']:
                 if c.get('name') == 'resolve-realm-secrets':
                     for e in c.get('env', []):
-                        if e.get('name') == 'OSAC_UI_URL' and e.get('value'):
+                        if e.get('name') == 'OSAC_UI_URL':
+                            print(e.get('value', ''))
                             sys.exit(0)
 sys.exit(1)
-" || fail "Static deployment.yaml's resolve-realm-secrets container must set OSAC_UI_URL"
+") || fail "Static deployment.yaml's resolve-realm-secrets container must declare OSAC_UI_URL"
+
+    # ...and must not ship a usable default: a stand-in hostname would import a
+    # realm whose osac-ui redirectUris point somewhere the operator never chose,
+    # and only surface later as "Invalid parameter: redirect_uri" in a browser.
+    # Applying the manifest unedited has to fail in the initContainer instead.
+    if env PATH="${TMP_DIR}/bin:${PATH}" \
+        REALM_ADMIN_USERNAME="admin" \
+        REALM_ADMIN_PASSWORD="admin" \
+        OSAC_UI_URL="${STATIC_UI_URL}" \
+        bash "${TMP_DIR}/extracted-static-resolve.sh" >/dev/null 2>&1; then
+        fail "Static deployment.yaml ships OSAC_UI_URL='${STATIC_UI_URL}', which the resolver accepts; it must be empty so an unedited apply fails instead of importing a placeholder URL"
+    fi
 fi
 
 echo
