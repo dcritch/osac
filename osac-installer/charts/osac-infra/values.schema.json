@@ -4,6 +4,38 @@
   "description": "Configuration values for OSAC shared infrastructure (Phase 2)",
   "type": "object",
   "properties": {
+    "hookResources": {
+      "type": "object",
+      "description": "Resource requests and limits applied to every cliImage hook Job. These hooks invoke `oc`, whose peak memory scales with the cluster's CRD count because of API discovery caching, so the limit is shared rather than set per hook. Raise the memory limit on clusters with unusually large CRD counts.",
+      "properties": {
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string",
+              "description": "CPU limit"
+            },
+            "memory": {
+              "type": "string",
+              "description": "Memory limit"
+            }
+          }
+        },
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string",
+              "description": "CPU request"
+            },
+            "memory": {
+              "type": "string",
+              "description": "Memory request"
+            }
+          }
+        }
+      }
+    },
     "mce": {
       "type": "object",
       "properties": {
