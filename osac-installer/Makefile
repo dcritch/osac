@@ -580,7 +580,7 @@ helm-validate: helm-lint csi-render-test helm-networking-test fulfillment-trust-
 	helm template osac-infra $(INFRA_CHART) --values values/dev/kind-infra.yaml
 	./scripts/validate-keycloak-credentials.sh
 	./scripts/validate-hub-access-rbac.sh
-	./scripts/validate-keycloak-ui-redirect-uris.sh
+	./scripts/validate-keycloak-ui-redirect-uris.py
 	@echo "Validation passed."
 
 .PHONY: helm-networking-test

@@ -323,7 +323,7 @@ targets the kind `dev-full` UI HTTPRoute.
 
 If the value does not match the URL the browser actually uses, login fails at
 Keycloak with `Invalid parameter: redirect_uri`. `make helm-validate` runs
-`scripts/validate-keycloak-ui-redirect-uris.sh`, which fails if the client ever
+`scripts/validate-keycloak-ui-redirect-uris.py`, which fails if the client ever
 regains relative redirect URIs.
 
 ## Updating Hub CSI Fulfillment Configuration
