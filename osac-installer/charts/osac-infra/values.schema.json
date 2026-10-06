@@ -13,11 +13,13 @@
           "properties": {
             "cpu": {
               "type": "string",
-              "description": "CPU limit"
+              "description": "CPU limit as a Kubernetes quantity, for example 200m or 1",
+              "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
             },
             "memory": {
               "type": "string",
-              "description": "Memory limit"
+              "description": "Memory limit as a Kubernetes quantity, for example 1Gi or 512Mi",
+              "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
             }
           }
         },
@@ -26,11 +28,13 @@
           "properties": {
             "cpu": {
               "type": "string",
-              "description": "CPU request"
+              "description": "CPU request as a Kubernetes quantity, for example 50m",
+              "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
             },
             "memory": {
               "type": "string",
-              "description": "Memory request"
+              "description": "Memory request as a Kubernetes quantity, for example 128Mi",
+              "pattern": "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
             }
           }
         }
