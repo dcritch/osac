@@ -84,11 +84,9 @@ spec:
           # osac-ui client's redirectUris are relative, so the UI's real URL is
           # substituted into rootUrl/redirectUris/webOrigins here.
           OSAC_UI_URL="${OSAC_UI_URL%/}"
-          # The rejected value is echoed to make a typo diagnosable, but it is
-          # still unvalidated, so drop anything up to the last "@" first.
-          OSAC_UI_URL_LOG="${OSAC_UI_URL}"
-          if [[ "${OSAC_UI_URL_LOG}" == *@* ]]; then OSAC_UI_URL_LOG="<redacted>@${OSAC_UI_URL_LOG##*@}"; fi
-          [[ "${OSAC_UI_URL}" =~ ^https?://[A-Za-z0-9._-]+(:[0-9]+)?$ ]] || { echo "ERROR: OSAC_UI_URL must be an absolute scheme://host[:port] URL with no path, got '${OSAC_UI_URL_LOG}'" >&2; exit 1; }
+          # The rejected value is deliberately not echoed: it is unvalidated
+          # here, so a path or query on it could carry a token into the log.
+          [[ "${OSAC_UI_URL}" =~ ^https?://[A-Za-z0-9._-]+(:[0-9]+)?$ ]] || { echo "ERROR: OSAC_UI_URL must be an absolute scheme://host[:port] URL with no path; check the keycloak.uiUrl Helm value" >&2; exit 1; }
           # http:// would return the authorization code to the browser
           # unencrypted, so it is allowed only for local-development hosts.
           if [[ "${OSAC_UI_URL}" == http://* ]]; then

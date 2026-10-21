@@ -60,19 +60,13 @@ REALM_ADMIN_PASSWORD="${REALM_ADMIN_PASSWORD:?REALM_ADMIN_PASSWORD must be set}"
 # The value comes from .Values.keycloak.uiUrl via the initContainer's env.
 OSAC_UI_URL="${OSAC_UI_URL:?OSAC_UI_URL must be set (Helm value keycloak.uiUrl)}"
 OSAC_UI_URL="${OSAC_UI_URL%/}"
-# The rejected value is echoed so a typo is diagnosable from the pod log, but
-# it has not been validated yet, so drop anything up to the last "@" first:
-# the charset below excludes userinfo, so a URL carrying credentials can only
-# ever reach this message, never the realm.
-OSAC_UI_URL_LOG="${OSAC_UI_URL}"
-if [[ "${OSAC_UI_URL_LOG}" == *@* ]]; then
-    OSAC_UI_URL_LOG="<redacted>@${OSAC_UI_URL_LOG##*@}"
-fi
 # Restricted to scheme://host[:port]: anything outside this charset would
 # either need JSON escaping before landing in realm.json, or silently produce
 # a redirectUri Keycloak will not match.
+# The rejected value is deliberately not echoed: it is unvalidated at this
+# point, so a path or query string on it could carry a token into the pod log.
 [[ "${OSAC_UI_URL}" =~ ^https?://[A-Za-z0-9._-]+(:[0-9]+)?$ ]] || {
-    echo "ERROR: OSAC_UI_URL must be an absolute scheme://host[:port] URL with no path, got '${OSAC_UI_URL_LOG}'" >&2
+    echo "ERROR: OSAC_UI_URL must be an absolute scheme://host[:port] URL with no path; check the keycloak.uiUrl Helm value" >&2
     exit 1
 }
 # Over plain HTTP the authorization code travels back to the UI unencrypted, so
